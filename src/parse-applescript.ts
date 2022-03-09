@@ -8,7 +8,7 @@ export class AppleScriptParseError extends Error {
 }
 
 /**
- * Ported over from https://github.com/TooTallNate/node-applescript/blob/master/lib/applescript.js
+ * Ported from https://github.com/TooTallNate/node-applescript/blob/master/lib/applescript.js
  */
 class AppleScriptParser {
 	value: string;
@@ -33,8 +33,10 @@ class AppleScriptParser {
 		const cur = this.value[this.index]!;
 
 		switch (cur) {
-			case '{':
-				return this.parseArray();
+			case '{': {
+				return this.parseArrayOrRecord();
+			}
+
 			case '"':
 				return this.parseString();
 			case 'a':
@@ -60,7 +62,7 @@ class AppleScriptParser {
 		}
 
 		// eslint-disable-next-line unicorn/prefer-number-properties
-		if (!isNaN(cur as unknown as number)) {
+		if (cur === '-' || !isNaN(cur as unknown as number)) {
 			return this.parseNumber();
 		}
 
@@ -89,8 +91,64 @@ class AppleScriptParser {
 	}
 
 	/**
-	Parses an AppleScript Array. Which looks like {}, instead of JavaScript's [].
+	Parses a literal term (i.e. only letters)
 	*/
+	parseLiteral() {
+		const literalChars = [];
+
+		do {
+			if (this.value[this.index] === undefined) {
+				return literalChars.join('');
+			}
+
+			literalChars.push(this.value[this.index]);
+			this.index += 1;
+		} while (/[a-zA-Z\d]/.test(this.value[this.index]!));
+
+		return literalChars.join('');
+	}
+
+	parseRecord() {
+		const record: Record<string, unknown> = {};
+
+		const startIndex = this.index;
+
+		// Skip the initial `{` character
+		this.index += 1;
+
+		let cur = this.value[this.index];
+
+		// While the end of the Record hasn't been reached
+		while (cur !== '}') {
+			if (cur === undefined) {
+				throw new AppleScriptParseError(
+					`Ending \`}\` character of record at position ${startIndex} was never found.`
+				);
+			}
+
+			const key = this.parseLiteral();
+
+			// Skip the `:` symbol
+			this.index += 1;
+
+			const value = this.parseFromFirstRemaining();
+
+			record[key] = value;
+
+			if (this.value[this.index] === ',') {
+				// Skips the ", " characters
+				this.index += 2;
+			}
+
+			cur = this.value[this.index];
+		}
+
+		// Skip the ending `}` character
+		this.index += 1;
+
+		return record;
+	}
+
 	parseArray(): unknown[] {
 		const rtn = [];
 
@@ -104,7 +162,7 @@ class AppleScriptParser {
 			// The ending `}` character was never found
 			if (cur === undefined) {
 				throw new AppleScriptParseError(
-					`Ending \`}\` character of array at position ${startIndex} was never found.`
+					`Ending \`}\` character of array/record at position ${startIndex} was never found.`
 				);
 			}
 
@@ -118,9 +176,46 @@ class AppleScriptParser {
 			cur = this.value[this.index];
 		}
 
+		// Skip the ending `}` character
 		this.index += 1;
 
 		return rtn;
+	}
+
+	/**
+	Parses an AppleScript Array or an Record, both which use {}.
+	*/
+	parseArrayOrRecord() {
+		// Check which comes first, a colon (indicating a Record) or a comma or closing brace (indicating an Array)
+
+		const nextClosingBraceIndex = this.value.indexOf('}', this.index);
+
+		if (nextClosingBraceIndex === undefined) {
+			throw new AppleScriptParseError(
+				`Ending \`}\` character of array at position ${this.index} was never found.`
+			);
+		}
+
+		// If the next few lines is a literal ended by a colon, then it is a record
+		let literalIndex = this.index + 1;
+		let literalChar = this.value[literalIndex]!;
+		let isRecord = true;
+		while (literalChar !== ':' && literalChar !== undefined) {
+			if (!/[a-zA-Z\d]/.test(literalChar)) {
+				isRecord = false;
+				break;
+			}
+
+			literalIndex += 1;
+			literalChar = this.value[literalIndex]!;
+		}
+
+		if (isRecord) {
+			// The string represents an AppleScript record
+			return this.parseRecord();
+		} else {
+			return this.parseArray();
+		}
 	}
 
 	/**
@@ -134,7 +229,7 @@ class AppleScriptParser {
 	Parses «data » results into native Buffer instances.
 	*/
 	parseData() {
-		let body = this.parseUnknown();
+		let body = this.parseUnknown({ boolean: false }) as string;
 		body = body.slice(6, -1);
 		const type = body.slice(0, 4);
 		body = body.slice(4, body.length);
@@ -158,34 +253,44 @@ class AppleScriptParser {
 		let rtn = '';
 
 		const startIndex = this.index;
-		// Skips the `"` character
+
+		// Skips the initial `"` character
 		this.index += 1;
 
-		let end = this.index;
-		let cur = this.value[end];
-		end += 1;
+		let curIndex = this.index;
+		let curCharacter = this.value[curIndex];
 
 		// While the ending `"` character hasn't been reached
-		while (cur !== '"') {
-			if (cur === undefined) {
+		while (curCharacter !== '"') {
+			if (curCharacter === undefined) {
 				throw new AppleScriptParseError(
 					`Ending character \`"\` of string at position ${startIndex} was never found.`
 				);
 			}
 
-			if (cur === '\\') {
-				rtn += this.value.slice(this.index, end - 1);
-				this.index = end;
-				end += 1;
-			}
+			if (curCharacter === '\\') {
+				// Include character after backslash
+				rtn += this.value.slice(this.index, curIndex + 2);
 
-			cur = this.value[end];
-			end += 1;
+				// Skip the character after the backslash so we don't count the backslashed `"` as the end of our string
+				this.index = curIndex + 2;
+
+				// Skip the character after the backslash
+				curIndex += 2;
+				curCharacter = this.value[curIndex];
+			} else {
+				curIndex += 1;
+				curCharacter = this.value[curIndex];
+			}
 		}
 
-		rtn += this.value.slice(this.index, end - 1);
-		this.index = end;
-		return rtn;
+		// Exclude the ending `"` character
+		rtn += this.value.slice(this.index, curIndex);
+
+		this.index = curIndex + 1;
+
+		// Using JSON.parse to evaluate the escaped characters
+		return JSON.parse(`"${rtn}"`) as string;
 	}
 
 	/**
@@ -193,7 +298,9 @@ class AppleScriptParser {
 	of "str", then `parseUnknown` is used. It crams everything it sees
 	into a String, until it finds a ',' or a '}' or it reaches the end of data.
 	*/
-	parseUnknown() {
+	parseUnknown({ boolean = true }: { boolean?: boolean } = {}):
+		| boolean
+		| string {
 		const END_OF_TOKEN = /[,\n}]/;
 
 		const startIndex = this.index;
@@ -206,7 +313,7 @@ class AppleScriptParser {
 			end += 1;
 		}
 
-		if (cur === undefined) {
+		if (cur === undefined && startIndex === end + 1) {
 			throw new AppleScriptParseError(
 				`Expected more characters, but reached end of input when parsing the input starting from position ${startIndex}.`
 			);
@@ -214,6 +321,17 @@ class AppleScriptParser {
 
 		const rtn = this.value.slice(this.index, end - 1);
 		this.index = end - 1;
+
+		if (boolean) {
+			if (rtn === 'false') {
+				return false;
+			}
+
+			if (rtn === 'true') {
+				return true;
+			}
+		}
+
 		return rtn;
 	}
 }
