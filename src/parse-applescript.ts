@@ -303,12 +303,23 @@ class AppleScriptParser {
 		| string {
 		const END_OF_TOKEN = /[,\n}]/;
 
+		// Keep track of number of opening + closing quotations
+		let hasOpenQuotation = false;
+
 		const startIndex = this.index;
 		let end = this.index;
 		let cur = this.value[end]!;
 		end += 1;
 
-		while (cur !== undefined && !END_OF_TOKEN.test(cur)) {
+		while (cur !== undefined) {
+			if (cur === '"') {
+				hasOpenQuotation = !hasOpenQuotation;
+			}
+
+			if (END_OF_TOKEN.test(cur) && !hasOpenQuotation) {
+				break;
+			}
+
 			cur = this.value[end]!;
 			end += 1;
 		}

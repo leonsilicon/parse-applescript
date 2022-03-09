@@ -17,6 +17,15 @@ test('correctly parses applescript', async () => {
 	expect(parseAppleScript('{A:"\\\\"}')).toEqual({ A: '\\' });
 	expect(parseAppleScript('"\\""')).toEqual('"');
 	expect(parseAppleScript('"\\\\"')).toEqual('\\');
+	expect(
+		parseAppleScript(outdent`
+			{menu item "System Preferences…" of menu "Apple" of menu bar item "Apple" of menu bar 1 of application process "System Preferences" of application "System Events", menu item "App Store…, 1 update" of menu "Apple" of menu bar item "Apple" of menu bar 1 of application process "System Preferences" of application "System Events", menu item 6 of menu "Apple" of menu bar item "Apple" of menu bar 1 of application process "System Preferences" of application "System Events"}
+		`)
+	).toEqual([
+		'menu item "System Preferences…" of menu "Apple" of menu bar item "Apple" of menu bar 1 of application process "System Preferences" of application "System Events"',
+		'menu item "App Store…, 1 update" of menu "Apple" of menu bar item "Apple" of menu bar 1 of application process "System Preferences" of application "System Events"',
+		'menu item 6 of menu "Apple" of menu bar item "Apple" of menu bar 1 of application process "System Preferences" of application "System Events"',
+	]);
 
 	fc.assert(
 		fc.property(
