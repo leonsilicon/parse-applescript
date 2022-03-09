@@ -1,5 +1,12 @@
 import { Buffer } from 'node:buffer';
 
+export class AppleScriptParseError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'AppleScriptParseError';
+	}
+}
+
 /**
  * Ported over from https://github.com/TooTallNate/node-applescript/blob/master/lib/applescript.js
  */
@@ -57,7 +64,7 @@ class AppleScriptParser {
 			return this.parseNumber();
 		}
 
-		return this.parseUndefined();
+		return this.parseUnknown();
 	}
 
 	/**
@@ -65,7 +72,9 @@ class AppleScriptParser {
 	location on the filesystem, but formatted kinda weirdly.
 	*/
 	parseAlias() {
+		// Skips the "alias " string
 		this.index += 6;
+
 		return '/Volumes/' + this.parseString().replace(/:/g, '/');
 	}
 
@@ -73,7 +82,9 @@ class AppleScriptParser {
 	Parses an AppleScript date into a native JavaScript Date instance.
 	*/
 	parseDate() {
+		// Skips the "date " string
 		this.index += 5;
+
 		return new Date(this.parseString().replace(' at', ','));
 	}
 
@@ -83,10 +94,27 @@ class AppleScriptParser {
 	parseArray(): unknown[] {
 		const rtn = [];
 
-		let cur = this.value[++this.index];
+		const startIndex = this.index;
+		// Skips the `{` character
+		this.index += 1;
+
+		let cur = this.value[this.index];
+
 		while (cur !== '}') {
+			// The ending `}` character was never found
+			if (cur === undefined) {
+				throw new AppleScriptParseError(
+					`Ending \`}\` character of array at position ${startIndex} was never found.`
+				);
+			}
+
 			rtn.push(this.parseFromFirstRemaining());
-			if (this.value[this.index] === ',') this.index += 2;
+
+			if (this.value[this.index] === ',') {
+				// Skips the ", " characters
+				this.index += 2;
+			}
+
 			cur = this.value[this.index];
 		}
 
@@ -99,21 +127,22 @@ class AppleScriptParser {
 	Parses an AppleScript Number into a native JavaScript Number instance.
 	*/
 	parseNumber() {
-		return Number(this.parseUndefined());
+		return Number(this.parseUnknown());
 	}
 
 	/**
 	Parses «data » results into native Buffer instances.
 	*/
 	parseData() {
-		let body = this.parseUndefined();
+		let body = this.parseUnknown();
 		body = body.slice(6, -1);
 		const type = body.slice(0, 4);
 		body = body.slice(4, body.length);
 		const buf = Buffer.alloc(body.length / 2);
 		let count = 0;
 		for (let i = 0, l = body.length; i < l; i += 2) {
-			buf[count++] = Number.parseInt(body[i]! + body[i + 1]!, 16);
+			buf[count] = Number.parseInt(body[i]! + body[i + 1]!, 16);
+			count += 1;
 		}
 
 		(buf as any).type = type;
@@ -127,15 +156,31 @@ class AppleScriptParser {
 	*/
 	parseString() {
 		let rtn = '';
-		let end = ++this.index;
-		let cur = this.value[end++];
+
+		const startIndex = this.index;
+		// Skips the `"` character
+		this.index += 1;
+
+		let end = this.index;
+		let cur = this.value[end];
+		end += 1;
+
+		// While the ending `"` character hasn't been reached
 		while (cur !== '"') {
-			if (cur === '\\') {
-				rtn += this.value.slice(this.index, end - 1);
-				this.index = end++;
+			if (cur === undefined) {
+				throw new AppleScriptParseError(
+					`Ending character \`"\` of string at position ${startIndex} was never found.`
+				);
 			}
 
-			cur = this.value[end++];
+			if (cur === '\\') {
+				rtn += this.value.slice(this.index, end - 1);
+				this.index = end;
+				end += 1;
+			}
+
+			cur = this.value[end];
+			end += 1;
 		}
 
 		rtn += this.value.slice(this.index, end - 1);
@@ -145,17 +190,26 @@ class AppleScriptParser {
 
 	/**
 	When the "parseFromFirstRemaining" function can't figure out the data type
-	of "str", then the UndefinedParser is used. It crams everything it sees
+	of "str", then `parseUnknown` is used. It crams everything it sees
 	into a String, until it finds a ',' or a '}' or it reaches the end of data.
 	*/
-	parseUndefined() {
+	parseUnknown() {
 		const END_OF_TOKEN = /[,\n}]/;
 
+		const startIndex = this.index;
 		let end = this.index;
-		let cur = this.value[end++]!;
+		let cur = this.value[end]!;
+		end += 1;
 
 		while (cur !== undefined && !END_OF_TOKEN.test(cur)) {
-			cur = this.value[end++]!;
+			cur = this.value[end]!;
+			end += 1;
+		}
+
+		if (cur === undefined) {
+			throw new AppleScriptParseError(
+				`Expected more characters, but reached end of input when parsing the input starting from position ${startIndex}.`
+			);
 		}
 
 		const rtn = this.value.slice(this.index, end - 1);
