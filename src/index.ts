@@ -1,1 +1,4 @@
-export { parseAppleScript } from './parse-applescript.js';
+export {
+	parseAppleScript,
+	AppleScriptParseError,
+} from './parse-applescript.js';
