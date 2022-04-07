@@ -19,6 +19,7 @@ test('correctly parses applescript', async () => {
 	expect(parseAppleScript('"\\\\"')).toEqual('\\');
 	expect(parseAppleScript('{S:""}')).toEqual({ S: '' });
 	expect(parseAppleScript('\\\\')).toEqual('\\\\');
+	expect(parseAppleScript('\\')).toEqual('\\');
 
 	expect(
 		parseAppleScript(outdent`
