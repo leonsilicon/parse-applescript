@@ -11,5 +11,5 @@ npm install parse-applescript
 ```javascript
 import { parseAppleScript } from 'parse-applescript';
 
-parseAppleScript('{1, 2, 3}') // [1, 2, 3]
+parseAppleScript('{1, 2, 3}'); // [1, 2, 3]
 ```
