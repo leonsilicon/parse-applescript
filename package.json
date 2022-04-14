@@ -22,7 +22,7 @@
 		"start": "node-ts ./src/index.ts",
 		"test": "vitest run",
 		"lint": "eslint --cache --fix .",
-		"prettier": "prettier --write src",
+		"prettier": "prettier --write .",
 		"tc": "tsc --noEmit"
 	},
 	"devDependencies": {

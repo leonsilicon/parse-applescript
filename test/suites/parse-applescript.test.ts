@@ -1,12 +1,13 @@
-import * as fs from 'node:fs';
 import deepEqual from 'deep-equal';
-import { expect, test } from 'vitest';
 import { join } from 'desm';
-import { outdent } from 'outdent';
 import fc from 'fast-check';
+import * as fs from 'node:fs';
+import { outdent } from 'outdent';
 import traverse from 'traverse';
-import { runAppleScriptSync } from '~test/utils/applescript.js';
+import { expect, test } from 'vitest';
+
 import { parseAppleScript } from '~/parse-applescript.js';
+import { runAppleScriptSync } from '~test/utils/applescript.js';
 
 const jsonAppleScript = fs.readFileSync(
 	join(import.meta.url, '../json.applescript')
@@ -63,15 +64,21 @@ test('correctly parses applescript', async () => {
 			(jsonValue) => {
 				const json = JSON.stringify(jsonValue);
 
-				const appleScriptValue = runAppleScriptSync(outdent`
-					${jsonAppleScript}
+				let appleScriptValue: string;
+				try {
+					appleScriptValue = runAppleScriptSync(outdent`
+						${jsonAppleScript}
 
-					return decode(${
-						typeof json === 'string'
-							? JSON.stringify(json)
-							: `"${JSON.stringify(json)}"`
-					})
-				`);
+						return decode(${
+							typeof json === 'string'
+								? JSON.stringify(json)
+								: `"${JSON.stringify(json)}"`
+						})
+					`);
+				} catch {
+					// If the script failed to parse, that's not because of our program
+					return;
+				}
 
 				expect(jsonValue).toEqual(parseAppleScript(appleScriptValue));
 			}
