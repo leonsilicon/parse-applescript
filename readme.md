@@ -1,6 +1,6 @@
 # parse-applescript
 
-[![npm version](https://badge.fury.io/js/parse-applescript.svg)](https://badge.fury.io/js/parse-applescript)
+[![npm version](https://img.shields.io/npm/v/parse-applescript)](https://npmjs.com/package/parse-applescript)
 
 ## Installation
 
