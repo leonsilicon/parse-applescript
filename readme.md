@@ -1,5 +1,7 @@
 # parse-applescript
 
+[![npm version](https://badge.fury.io/js/parse-applescript.svg)](https://badge.fury.io/js/parse-applescript)
+
 ## Installation
 
 ```shell
