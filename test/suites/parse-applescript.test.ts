@@ -58,6 +58,12 @@ test('correctly parses applescript', async () => {
 		description: 'PDE',
 	});
 
+	expect(
+		parseAppleScript(outdent`
+			{{minimum value:missing value, orientation:missing value, position:{0, 1440}, class:column, accessibility description:missing value, role description:"column", focused:missing value, title:missing value, size:{350, 0}, help:missing value, entire contents:{}, enabled:missing value, maximum value:missing value, role:"AXColumn", value:missing value, subrole:missing value, selected:false, name:missing value, description:"column"}, {minimum value:missing value, orientation:missing value, position:{0, 31}, class:menu item, accessibility description:missing value, role description:"menu item", focused:missing value, title:"Preview Help", size:{360, 22}, help:missing value, entire contents:{}, enabled:true, maximum value:missing value, role:"AXMenuItem", value:missing value, subrole:missing value, selected:false, name:"Preview Help", description:"menu item"}}
+		`)
+	).toHaveLength(2);
+
 	fc.assert(
 		fc.property(
 			fc.jsonValue().filter((jsonValue) => {
