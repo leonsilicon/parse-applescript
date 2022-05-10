@@ -8,8 +8,8 @@ export class AppleScriptParseError extends Error {
 }
 
 /**
- * Ported from https://github.com/TooTallNate/node-applescript/blob/master/lib/applescript.js
- */
+	Ported from https://github.com/TooTallNate/node-applescript/blob/master/lib/applescript.js
+*/
 class AppleScriptParser {
 	value: string;
 	index: number;
@@ -24,10 +24,7 @@ class AppleScriptParser {
 	}
 
 	/**
-	Attempts to determine the data type of the next part of the String to
-	parse. The 'this' value has a Object with 'value' as the AppleScript
-	string to parse, and 'index' as the pointer to the current position
-	of parsing in the String. This Function does not need to be exported???
+		Attempts to determine the data type of the next part of the String to parse. The 'this' value has a Object with 'value' as the AppleScript string to parse, and 'index' as the pointer to the current position of parsing in the String.
 	*/
 	parseFromFirstRemaining() {
 		const cur = this.value[this.index]!;
@@ -70,8 +67,7 @@ class AppleScriptParser {
 	}
 
 	/**
-	Parses an AppleScript "alias", which is really just a reference to a
-	location on the filesystem, but formatted kinda weirdly.
+		Parses an AppleScript "alias", which is really just a reference to a location on the filesystem, but formatted kinda weirdly.
 	*/
 	parseAlias() {
 		// Skips the "alias " string
@@ -81,7 +77,7 @@ class AppleScriptParser {
 	}
 
 	/**
-	Parses an AppleScript date into a native JavaScript Date instance.
+		Parses an AppleScript date into a native JavaScript Date instance.
 	*/
 	parseDate() {
 		// Skips the "date " string
@@ -91,10 +87,13 @@ class AppleScriptParser {
 	}
 
 	/**
-	Parses a literal term (i.e. only letters)
+		Parses a literal term (i.e. only letters and maybe spaces)
 	*/
-	parseLiteral() {
+	parseLiteral(options?: { includeSpaces: boolean }) {
 		const literalChars = [];
+
+		const includeSpaces = options?.includeSpaces ?? false;
+		const literalRegex = includeSpaces ? /[a-zA-Z\d ]/ : /[a-zA-Z\d]/;
 
 		do {
 			if (this.value[this.index] === undefined) {
@@ -103,7 +102,7 @@ class AppleScriptParser {
 
 			literalChars.push(this.value[this.index]);
 			this.index += 1;
-		} while (/[a-zA-Z\d]/.test(this.value[this.index]!));
+		} while (literalRegex.test(this.value[this.index]!));
 
 		return literalChars.join('');
 	}
@@ -126,7 +125,8 @@ class AppleScriptParser {
 				);
 			}
 
-			const key = this.parseLiteral();
+			// Object keys can have spaces
+			const key = this.parseLiteral({ includeSpaces: true });
 
 			// Skip the `:` symbol
 			this.index += 1;
@@ -183,7 +183,7 @@ class AppleScriptParser {
 	}
 
 	/**
-	Parses an AppleScript Array or an Record, both which use {}.
+		Parses an AppleScript Array or an Record, both which use {}.
 	*/
 	parseArrayOrRecord() {
 		// Check which comes first, a colon (indicating a Record) or a comma or closing brace (indicating an Array)
@@ -201,7 +201,8 @@ class AppleScriptParser {
 		let literalChar = this.value[literalIndex]!;
 		let isRecord = true;
 		while (literalChar !== ':' && literalChar !== undefined) {
-			if (!/[a-zA-Z\d]/.test(literalChar)) {
+			// The literal character could include a space
+			if (!/[a-zA-Z\d ]/.test(literalChar)) {
 				isRecord = false;
 				break;
 			}
@@ -219,14 +220,14 @@ class AppleScriptParser {
 	}
 
 	/**
-	Parses an AppleScript Number into a native JavaScript Number instance.
+		Parses an AppleScript Number into a native JavaScript Number instance.
 	*/
 	parseNumber() {
 		return Number(this.parseUnknown());
 	}
 
 	/**
-	Parses «data » results into native Buffer instances.
+		Parses «data » results into native Buffer instances.
 	*/
 	parseData() {
 		let body = this.parseUnknown({ boolean: false }) as string;
@@ -245,9 +246,7 @@ class AppleScriptParser {
 	}
 
 	/**
-	Parses a standard AppleScript String. Which starts and ends with "" chars.
-	The \ char is the escape character, so anything after that is a valid part
-	of the resulting String.
+		Parses a standard AppleScript String. Which starts and ends with "" chars.  The \ char is the escape character, so anything after that is a valid part of the resulting String.
 	*/
 	parseString() {
 		let rtn = '';
@@ -294,9 +293,7 @@ class AppleScriptParser {
 	}
 
 	/**
-	When the "parseFromFirstRemaining" function can't figure out the data type
-	of "str", then `parseUnknown` is used. It crams everything it sees
-	into a String, until it finds a ',' or a '}' or it reaches the end of data.
+		When the "parseFromFirstRemaining" function can't figure out the data type of "str", then `parseUnknown` is used. It crams everything it sees into a String, until it finds a ',' or a '}' or it reaches the end of data.
 	*/
 	parseUnknown({ boolean = true }: { boolean?: boolean } = {}):
 		| boolean

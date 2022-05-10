@@ -47,7 +47,7 @@ test('correctly parses applescript', async () => {
 		title: null,
 		size: [182, 25],
 		help: null,
-		'entire contents': {},
+		'entire contents': [],
 		enabled: true,
 		'maximum value': null,
 		role: 'AXPopUpButton',
