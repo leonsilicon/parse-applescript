@@ -32,6 +32,32 @@ test('correctly parses applescript', async () => {
 		'menu item 6 of menu "Apple" of menu bar item "Apple" of menu bar 1 of application process "System Preferences" of application "System Events"',
 	]);
 
+	expect(
+		parseAppleScript(outdent`
+			{minimum value:missing value, orientation:missing value, position:{454, 1174}, class:pop up button, accessibility description:"PDE", role description:"pop up button", focused:false, title:missing value, size:{182, 25}, help:missing value, entire contents:{}, enabled:true, maximum value:missing value, role:"AXPopUpButton", value:"Preview", subrole:missing value, selected:missing value, name:missing value, description:"PDE"}
+		`)
+	).toEqual({
+		'minimum value': null,
+		orientation: null,
+		position: [454, 1174],
+		class: 'pop up button',
+		'accessibility description': 'PDE',
+		'role description': 'pop up button',
+		focused: false,
+		title: null,
+		size: [182, 25],
+		help: null,
+		'entire contents': {},
+		enabled: true,
+		'maximum value': null,
+		role: 'AXPopUpButton',
+		value: 'Preview',
+		subrole: null,
+		selected: null,
+		name: null,
+		description: 'PDE',
+	});
+
 	fc.assert(
 		fc.property(
 			fc.jsonValue().filter((jsonValue) => {

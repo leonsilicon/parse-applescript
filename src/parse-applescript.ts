@@ -300,7 +300,8 @@ class AppleScriptParser {
 	*/
 	parseUnknown({ boolean = true }: { boolean?: boolean } = {}):
 		| boolean
-		| string {
+		| string
+		| null {
 		const END_OF_TOKEN = /[,\n}]/;
 
 		// Keep track of number of opening + closing quotations
@@ -341,6 +342,10 @@ class AppleScriptParser {
 			if (rtn === 'true') {
 				return true;
 			}
+		}
+
+		if (rtn === 'missing value') {
+			return null;
 		}
 
 		return rtn;
